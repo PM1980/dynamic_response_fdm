@@ -72,18 +72,18 @@ def calculate_response_cds(K, M, zeta, x0, v0, tf, dt, force_type, force_param, 
     return t, x, v, a
 
 # Streamlit User Interface
-st.title("Damped Harmonic Oscillator Simulation (Central Difference Scheme)")
+st.title("Vibração forçada amortecida - Sistema de 1 grau de liberdade (Diferença Finita Central)")
 
-st.sidebar.header("System Parameters")
-K = st.sidebar.number_input("Stiffness (N/m)", value=1000.0, min_value=0.1)
-M = st.sidebar.number_input("Mass (kg)", value=1.0, min_value=0.1)
-zeta = st.sidebar.slider("Damping Ratio (ζ)", 0.0, 2.0, 0.05, step=0.01)
-x0 = st.sidebar.number_input("Initial Displacement (m)", value=1.0)
-v0 = st.sidebar.number_input("Initial Velocity (m/s)", value=0.0)
-tf = st.sidebar.number_input("Simulation Time (s)", value=10.0, min_value=0.1, step=0.1)
-dt = st.sidebar.number_input("Time Step (s)", value=0.01, min_value=0.001, step=0.001)
+st.sidebar.header("Parâmetros dos sistema")
+K = st.sidebar.number_input("Rigidez (N/m)", value=1000.0, min_value=0.1)
+M = st.sidebar.number_input("Massa (kg)", value=1.0, min_value=0.1)
+zeta = st.sidebar.slider("Razão de amortecimento (ζ)", 0.0, 2.0, 0.05, step=0.01)
+x0 = st.sidebar.number_input("Deslocamento inicial (m)", value=1.0)
+v0 = st.sidebar.number_input("Velocidade inicial (m/s)", value=0.0)
+tf = st.sidebar.number_input("Tempo de simulação (s)", value=10.0, min_value=0.1, step=0.1)
+dt = st.sidebar.number_input("Passo de tempo (s)", value=0.01, min_value=0.001, step=0.001)
 
-st.sidebar.header("External Force")
+st.sidebar.header("Excitação externa")
 force_type = st.sidebar.selectbox("Force Type", ["Harmonic", "Linear"])
 if force_type == "Harmonic":
     force_amplitude = st.sidebar.number_input("Force Amplitude (N)", value=0.0)
