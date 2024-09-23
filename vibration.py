@@ -85,7 +85,7 @@ dt = st.sidebar.number_input("Passo de tempo (s)", value=0.01, min_value=0.001, 
 
 st.sidebar.header("Excitação externa")
 force_type = st.sidebar.selectbox("Tipo de excitação", ["Harmônica - Fo*Sin(w*t)", "Linear - Fo*x "])
-if force_type == "Harmonic":
+if force_type == "Harmônica - Fo*Sin(w*t)":
     force_amplitude = st.sidebar.number_input("Amplitude Fo (N)", value=0.0)
     omega_force = st.sidebar.number_input("Frequência de excitação w (rad/s)", value=1.0, min_value=0.0)
     force_param = force_amplitude
