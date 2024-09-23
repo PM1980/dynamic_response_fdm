@@ -1,6 +1,7 @@
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 
 def calculate_response_cds(K, M, zeta, x0, v0, tf, dt, force_type, force_param, omega_force=0.0):
     """
@@ -14,8 +15,8 @@ def calculate_response_cds(K, M, zeta, x0, v0, tf, dt, force_type, force_param, 
     - v0: Initial velocity (m/s)
     - tf: Final time (s)
     - dt: Time step (s)
-    - force_type: "Harmonic" or "Linear"
-    - force_param: Amplitude for Harmonic, Slope for Linear
+    - force_type: "Harmonic", "Linear", or "Constant"
+    - force_param: Amplitude for Harmonic, Slope for Linear, or Constant force value
     - omega_force: Frequency for Harmonic force (rad/s)
 
     Returns:
@@ -39,8 +40,10 @@ def calculate_response_cds(K, M, zeta, x0, v0, tf, dt, force_type, force_param, 
     # Calculate initial acceleration
     if force_type == "Harmonic":
         F0 = force_param * np.sin(omega_force * t[0])
-    else:  # Linear
+    elif force_type == "Linear":
         F0 = force_param * t[0]
+    else:  # Constant
+        F0 = force_param
     a[0] = (F0 - C * v0 - K * x0) / M
     # Use Taylor series to estimate x[1]
     x[1] = x0 + dt * v0 + 0.5 * dt**2 * a[0]
@@ -55,8 +58,10 @@ def calculate_response_cds(K, M, zeta, x0, v0, tf, dt, force_type, force_param, 
     for i in range(1, n-1):
         if force_type == "Harmonic":
             F = force_param * np.sin(omega_force * t[i])
-        else:  # Linear
+        elif force_type == "Linear":
             F = force_param * t[i]
+        else:  # Constant
+            F = force_param
         
         # Corrected Central Difference Formula
         x_next = ((2 * M - K * dt**2) * x[i] - (M + (C * dt) / 2) * x[i-1] + F * dt**2) / (M + (C * dt) / 2)
@@ -69,8 +74,10 @@ def calculate_response_cds(K, M, zeta, x0, v0, tf, dt, force_type, force_param, 
     # Calculate final force at t[-1]
     if force_type == "Harmonic":
         F_final = force_param * np.sin(omega_force * t[-1])
-    else:  # Linear
+    elif force_type == "Linear":
         F_final = force_param * t[-1]
+    else:  # Constant
+        F_final = force_param
     
     # Calculate final velocity and acceleration using backward difference for velocity
     v[-1] = (x[-1] - x[-2]) / dt
@@ -91,15 +98,19 @@ tf = st.sidebar.number_input("Simulation Time (s)", value=10.0, min_value=0.1, s
 dt = st.sidebar.number_input("Time Step (s)", value=0.01, min_value=0.001, step=0.001)
 
 st.sidebar.header("External Force")
-force_type = st.sidebar.selectbox("Force Type", ["Harmonic", "Linear"])
+force_type = st.sidebar.selectbox("Force Type", ["Harmonic", "Linear", "Constant"])
 if force_type == "Harmonic":
     force_amplitude = st.sidebar.number_input("Force Amplitude (N)", value=1.0, step=0.1)
     omega_force = st.sidebar.number_input("Force Frequency (rad/s)", value=1.0, min_value=0.01, step=0.1)
     force_param = force_amplitude
-else:
+elif force_type == "Linear":
     force_slope = st.sidebar.number_input("Force Slope (N/s)", value=0.0, step=0.1)
     force_param = force_slope
     omega_force = 0.0  # Not used for Linear force
+else:  # Constant
+    force_constant = st.sidebar.number_input("Constant Force (N)", value=0.0, step=0.1)
+    force_param = force_constant
+    omega_force = 0.0  # Not used for Constant force
 
 # Validate Inputs
 if K <= 0 or M <= 0 or dt <= 0:
@@ -130,6 +141,23 @@ else:
 
     plt.tight_layout()
     st.pyplot(fig)
+
+    # External Force Plot
+    fig_force, ax_force = plt.subplots(figsize=(10, 3))
+    if force_type == "Harmonic":
+        F_values = force_param * np.sin(omega_force * t)
+    elif force_type == "Linear":
+        F_values = force_param * t
+    else:  # Constant
+        F_values = force_param * np.ones_like(t)
+    ax_force.plot(t, F_values, label='External Force F(t)', color='black')
+    ax_force.set_xlabel("Time (s)", fontsize=12)
+    ax_force.set_ylabel("Force (N)", fontsize=12)
+    ax_force.set_title("External Force vs Time", fontsize=14)
+    ax_force.grid(True)
+    ax_force.legend()
+
+    st.pyplot(fig_force)
 
     # Phase Space Plot
     fig_phase, ax_phase = plt.subplots(figsize=(10, 6))
@@ -165,3 +193,22 @@ else:
     st.markdown(f"**Maximum Velocity:** {np.max(np.abs(v)):.4f} m/s")
     st.markdown(f"**Maximum Acceleration:** {np.max(np.abs(a)):.4f} m/s²")
     st.markdown(f"**Final Total Energy:** {total_energy[-1]:.4f} J")
+
+    # Create a DataFrame with the results
+    df = pd.DataFrame({
+        'Time (s)': t,
+        'Displacement (m)': x,
+        'Velocity (m/s)': v,
+        'Acceleration (m/s²)': a,
+        'Kinetic Energy (J)': kinetic,
+        'Potential Energy (J)': potential,
+        'Total Energy (J)': total_energy
+    })
+
+    # Add a download button
+    st.download_button(
+        label="Download Data as CSV",
+        data=df.to_csv(index=False).encode('utf-8'),
+        file_name='oscillator_simulation_data.csv',
+        mime='text/csv',
+    )
