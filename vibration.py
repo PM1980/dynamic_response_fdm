@@ -1,7 +1,6 @@
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
-import pandas as pd
 
 def calculate_response_cds(K, M, zeta, x0, v0, tf, dt, force_type, force_param, omega_force=0.0):
     """
@@ -16,7 +15,7 @@ def calculate_response_cds(K, M, zeta, x0, v0, tf, dt, force_type, force_param, 
     - tf: Final time (s)
     - dt: Time step (s)
     - force_type: "Harmonic", "Linear", or "Constant"
-    - force_param: Amplitude for Harmonic, Slope for Linear, or Constant force value
+    - force_param: Amplitude for Harmonic, Slope for Linear, or Constant Force (N)
     - omega_force: Frequency for Harmonic force (rad/s)
 
     Returns:
@@ -43,7 +42,7 @@ def calculate_response_cds(K, M, zeta, x0, v0, tf, dt, force_type, force_param, 
     elif force_type == "Linear":
         F0 = force_param * t[0]
     else:  # Constant
-        F0 = force_param
+        F0 = force_param  # Constant force
     a[0] = (F0 - C * v0 - K * x0) / M
     # Use Taylor series to estimate x[1]
     x[1] = x0 + dt * v0 + 0.5 * dt**2 * a[0]
@@ -61,12 +60,10 @@ def calculate_response_cds(K, M, zeta, x0, v0, tf, dt, force_type, force_param, 
         elif force_type == "Linear":
             F = force_param * t[i]
         else:  # Constant
-            F = force_param
+            F = force_param  # Constant force
         
         # Corrected Central Difference Formula
-        numerator = (2 * M - K * dt**2) * x[i] - (M - (C * dt) / 2) * x[i-1] + F * dt**2
-        denominator = M + (C * dt) / 2
-        x_next = numerator / denominator
+        x_next = ((2 * M - K * dt**2) * x[i] - (M + (C * dt) / 2) * x[i-1] + F * dt**2) / (M + (C * dt) / 2)
         x[i+1] = x_next
         
         # Calculate velocity and acceleration
@@ -79,7 +76,7 @@ def calculate_response_cds(K, M, zeta, x0, v0, tf, dt, force_type, force_param, 
     elif force_type == "Linear":
         F_final = force_param * t[-1]
     else:  # Constant
-        F_final = force_param
+        F_final = force_param  # Constant force
     
     # Calculate final velocity and acceleration using backward difference for velocity
     v[-1] = (x[-1] - x[-2]) / dt
@@ -110,8 +107,8 @@ elif force_type == "Linear":
     force_param = force_slope
     omega_force = 0.0  # Not used for Linear force
 else:  # Constant
-    force_constant = st.sidebar.number_input("Constant Force (N)", value=0.0, step=0.1)
-    force_param = force_constant
+    constant_force = st.sidebar.number_input("Constant Force (N)", value=1.0, step=0.1)
+    force_param = constant_force
     omega_force = 0.0  # Not used for Constant force
 
 # Validate Inputs
@@ -144,23 +141,6 @@ else:
     plt.tight_layout()
     st.pyplot(fig)
 
-    # External Force Plot
-    fig_force, ax_force = plt.subplots(figsize=(10, 3))
-    if force_type == "Harmonic":
-        F_values = force_param * np.sin(omega_force * t)
-    elif force_type == "Linear":
-        F_values = force_param * t
-    else:  # Constant
-        F_values = force_param * np.ones_like(t)
-    ax_force.plot(t, F_values, label='External Force F(t)', color='black')
-    ax_force.set_xlabel("Time (s)", fontsize=12)
-    ax_force.set_ylabel("Force (N)", fontsize=12)
-    ax_force.set_title("External Force vs Time", fontsize=14)
-    ax_force.grid(True)
-    ax_force.legend()
-
-    st.pyplot(fig_force)
-
     # Phase Space Plot
     fig_phase, ax_phase = plt.subplots(figsize=(10, 6))
     ax_phase.plot(x, v, label='Phase Space Trajectory', color='purple')
@@ -168,29 +148,3 @@ else:
     ax_phase.set_ylabel("Velocity (m/s)", fontsize=12)
     ax_phase.set_title("Phase Space Plot", fontsize=14)
     ax_phase.grid(True)
-    ax_phase.legend()
-
-    st.pyplot(fig_phase)
-
-    # Energy Plot
-    kinetic = 0.5 * M * v**2
-    potential = 0.5 * K * x**2
-    total_energy = kinetic + potential
-
-    fig_energy, ax_energy = plt.subplots(figsize=(10, 6))
-    ax_energy.plot(t, kinetic, label='Kinetic Energy', color='red')
-    ax_energy.plot(t, potential, label='Potential Energy', color='orange')
-    ax_energy.plot(t, total_energy, label='Total Energy', color='purple')
-    ax_energy.set_xlabel("Time (s)", fontsize=12)
-    ax_energy.set_ylabel("Energy (J)", fontsize=12)
-    ax_energy.set_title("Energy of the Oscillator", fontsize=14)
-    ax_energy.grid(True)
-    ax_energy.legend()
-
-    st.pyplot(fig_energy)
-
-    # Display Key Metrics
-    st.header("Simulation Metrics")
-    st.markdown(f"**Maximum Displacement:** {np.max(np.abs(x)):.4f} m")
-    st.markdown(f"**Maximum Velocity:** {np.max(np.abs(v)):.4f} m/s")
-    st.markdown(f"**Maximum 
