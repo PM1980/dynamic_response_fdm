@@ -64,7 +64,9 @@ def calculate_response_cds(K, M, zeta, x0, v0, tf, dt, force_type, force_param, 
             F = force_param
         
         # Corrected Central Difference Formula
-        x_next = ((2 * M - K * dt**2) * x[i] - (M + (C * dt) / 2) * x[i-1] + F * dt**2) / (M + (C * dt) / 2)
+        numerator = (2 * M - K * dt**2) * x[i] - (M - (C * dt) / 2) * x[i-1] + F * dt**2
+        denominator = M + (C * dt) / 2
+        x_next = numerator / denominator
         x[i+1] = x_next
         
         # Calculate velocity and acceleration
@@ -191,24 +193,4 @@ else:
     st.header("Simulation Metrics")
     st.markdown(f"**Maximum Displacement:** {np.max(np.abs(x)):.4f} m")
     st.markdown(f"**Maximum Velocity:** {np.max(np.abs(v)):.4f} m/s")
-    st.markdown(f"**Maximum Acceleration:** {np.max(np.abs(a)):.4f} m/s²")
-    st.markdown(f"**Final Total Energy:** {total_energy[-1]:.4f} J")
-
-    # Create a DataFrame with the results
-    df = pd.DataFrame({
-        'Time (s)': t,
-        'Displacement (m)': x,
-        'Velocity (m/s)': v,
-        'Acceleration (m/s²)': a,
-        'Kinetic Energy (J)': kinetic,
-        'Potential Energy (J)': potential,
-        'Total Energy (J)': total_energy
-    })
-
-    # Add a download button
-    st.download_button(
-        label="Download Data as CSV",
-        data=df.to_csv(index=False).encode('utf-8'),
-        file_name='oscillator_simulation_data.csv',
-        mime='text/csv',
-    )
+    st.markdown(f"**Maximum 
