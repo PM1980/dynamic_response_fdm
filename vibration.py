@@ -1,6 +1,7 @@
 import streamlit as st
 import numpy as np
-import matplotlib.pyplot as plt
+import plotly.graph_objs as go
+from plotly.subplots import make_subplots
 
 def calculate_response_cds(K, M, zeta, x0, v0, tf, dt, force_type, force_param, omega_force=0.0):
     """
@@ -21,6 +22,8 @@ def calculate_response_cds(K, M, zeta, x0, v0, tf, dt, force_type, force_param, 
     Returns:
     - t: Time array
     - x: Displacement array
+    - v: Velocity array
+    - a: Acceleration array
     """
     omega_n = np.sqrt(K / M)  # Natural frequency (rad/s)
     C = 2 * zeta * np.sqrt(K * M)  # Damping coefficient (N·s/m)
@@ -28,18 +31,28 @@ def calculate_response_cds(K, M, zeta, x0, v0, tf, dt, force_type, force_param, 
     t = np.arange(0, tf + dt, dt)
     n = len(t)
     x = np.zeros(n)
+    v = np.zeros(n)
+    a = np.zeros(n)
     
     # Initialize displacement and velocity
     x[0] = x0
-    # Calculate initial acceleration
+    v[0] = v0
+    
+    # Calculate initial force
     if force_type == "Harmonic":
         F0 = force_param * np.sin(omega_force * t[0])
     else:  # Linear
         F0 = force_param * t[0]
-    a0 = (F0 - C * v0 - K * x0) / M
+    
+    # Calculate initial acceleration
+    a[0] = (F0 - C * v0 - K * x0) / M
+    
     # Use Taylor series to estimate x[1]
-    x[1] = x0 + dt * v0 + 0.5 * dt**2 * a0
-
+    x[1] = x0 + dt * v0 + 0.5 * dt**2 * a[0]
+    
+    # Estimate initial velocity at t=dt using central difference
+    v[1] = (x[1] - x[0]) / dt
+    
     # Stability Check
     critical_dt = 2 / omega_n
     if dt >= critical_dt:
@@ -55,8 +68,56 @@ def calculate_response_cds(K, M, zeta, x0, v0, tf, dt, force_type, force_param, 
         # Central Difference Formula
         x_next = (2 * x[i] - x[i-1] + dt**2 * (F - C * (x[i] - x[i-1]) / dt - K * x[i]) / M) / (1 + (C * dt) / (2 * M))
         x[i+1] = x_next
+        
+        # Calculate velocity using central difference
+        v[i] = (x[i+1] - x[i-1]) / (2 * dt)
+        
+        # Calculate acceleration
+        a[i] = (F - C * v[i] - K * x[i]) / M
 
-    return t, x
+    # For the last point, use forward difference for velocity and acceleration
+    v[-1] = (x[-1] - x[-2]) / dt
+    if force_type == "Harmonic":
+        F_last = force_param * np.sin(omega_force * t[-1])
+    else:
+        F_last = force_param * t[-1]
+    a[-1] = (F_last - C * v[-1] - K * x[-1]) / M
+
+    return t, x, v, a
+
+def create_animation(t, y, y_label, title):
+    """
+    Create an animated Plotly line plot for the given data.
+
+    Parameters:
+    - t: Time array
+    - y: Data array (displacement, velocity, or acceleration)
+    - y_label: Label for the y-axis
+    - title: Title of the plot
+
+    Returns:
+    - fig: Plotly Figure object
+    """
+    fig = go.Figure(
+        data=[go.Scatter(x=[], y=[], mode='lines', name=y_label)],
+        layout=go.Layout(
+            title=title,
+            xaxis=dict(range=[t[0], t[-1]], title='Time (s)'),
+            yaxis=dict(range=[min(y)*1.1, max(y)*1.1], title=y_label),
+            updatemenus=[dict(
+                type="buttons",
+                buttons=[dict(label="Play",
+                              method="animate",
+                              args=[None, {"frame": {"duration": 20, "redraw": True},
+                                           "fromcurrent": True, "transition": {"duration": 0}}])]
+            )]
+        ),
+        frames=[go.Frame(data=[go.Scatter(x=t[:k+1], y=y[:k+1], mode='lines', name=y_label)],
+                         name=str(k)) for k in range(len(t))]
+    )
+
+    fig.update_layout(showlegend=False)
+    return fig
 
 # Streamlit User Interface
 st.title("Damped Harmonic Oscillator Simulation (Central Difference Scheme)")
@@ -82,50 +143,88 @@ else:
     omega_force = 0.0  # Not used for Linear force
 
 # Calculate response
-t, x = calculate_response_cds(K, M, zeta, x0, v0, tf, dt, force_type, force_param, omega_force)
+t, x, v, a = calculate_response_cds(K, M, zeta, x0, v0, tf, dt, force_type, force_param, omega_force)
 
-# Plotting Displacement vs Time
-fig, ax = plt.subplots(figsize=(10, 6))
-ax.plot(t, x, label='Displacement x(t)', color='blue')
-ax.set_xlabel("Time (s)", fontsize=14)
-ax.set_ylabel("Displacement (m)", fontsize=14)
-ax.set_title("Oscillator Response using Central Difference Scheme", fontsize=16)
-ax.grid(True)
-ax.legend()
+# Create Animated Plots
+st.header("Animated Plots")
 
-st.pyplot(fig)
+# Displacement Animation
+st.subheader("Displacement vs Time")
+fig_displacement = create_animation(t, x, "Displacement (m)", "Displacement vs Time")
+st.plotly_chart(fig_displacement, use_container_width=True)
 
-# Optional: Phase Space Plot
-# Calculate velocity using central difference approximation
-v = np.zeros_like(x)
-v[0] = v0
-for i in range(1, len(x)-1):
-    v[i] = (x[i+1] - x[i-1]) / (2 * dt)
-v[-1] = (x[-1] - x[-2]) / dt  # Forward difference for the last point
+# Velocity Animation
+st.subheader("Velocity vs Time")
+fig_velocity = create_animation(t, v, "Velocity (m/s)", "Velocity vs Time")
+st.plotly_chart(fig_velocity, use_container_width=True)
 
-fig_phase, ax_phase = plt.subplots(figsize=(10, 6))
-ax_phase.plot(x, v, label='Phase Space Trajectory', color='green')
-ax_phase.set_xlabel("Displacement (m)", fontsize=14)
-ax_phase.set_ylabel("Velocity (m/s)", fontsize=14)
-ax_phase.set_title("Phase Space Plot", fontsize=16)
-ax_phase.grid(True)
-ax_phase.legend()
+# Acceleration Animation
+st.subheader("Acceleration vs Time")
+fig_acceleration = create_animation(t, a, "Acceleration (m/s²)", "Acceleration vs Time")
+st.plotly_chart(fig_acceleration, use_container_width=True)
 
-st.pyplot(fig_phase)
+# Plotting Displacement, Velocity, and Acceleration vs Time (Static Plots)
+st.header("Static Plots")
 
-# Optional: Energy Plot
+# Displacement vs Time
+st.subheader("Displacement vs Time")
+fig1 = go.Figure()
+fig1.add_trace(go.Scatter(x=t, y=x, mode='lines', name='Displacement'))
+fig1.update_layout(title='Displacement vs Time', xaxis_title='Time (s)', yaxis_title='Displacement (m)', template='plotly_dark')
+st.plotly_chart(fig1, use_container_width=True)
+
+# Velocity vs Time
+st.subheader("Velocity vs Time")
+fig2 = go.Figure()
+fig2.add_trace(go.Scatter(x=t, y=v, mode='lines', name='Velocity', line=dict(color='orange')))
+fig2.update_layout(title='Velocity vs Time', xaxis_title='Time (s)', yaxis_title='Velocity (m/s)', template='plotly_dark')
+st.plotly_chart(fig2, use_container_width=True)
+
+# Acceleration vs Time
+st.subheader("Acceleration vs Time")
+fig3 = go.Figure()
+fig3.add_trace(go.Scatter(x=t, y=a, mode='lines', name='Acceleration', line=dict(color='green')))
+fig3.update_layout(title='Acceleration vs Time', xaxis_title='Time (s)', yaxis_title='Acceleration (m/s²)', template='plotly_dark')
+st.plotly_chart(fig3, use_container_width=True)
+
+# Phase Space Plot
+st.header("Phase Space Plot")
+fig_phase = go.Figure()
+fig_phase.add_trace(go.Scatter(x=x, y=v, mode='lines', name='Phase Space Trajectory', line=dict(color='purple')))
+fig_phase.update_layout(title='Phase Space Plot', xaxis_title='Displacement (m)', yaxis_title='Velocity (m/s)', template='plotly_dark')
+st.plotly_chart(fig_phase, use_container_width=True)
+
+# Energy Plot
+st.header("Energy of the Oscillator")
+
 kinetic = 0.5 * M * v**2
 potential = 0.5 * K * x**2
 total_energy = kinetic + potential
 
-fig_energy, ax_energy = plt.subplots(figsize=(10, 6))
-ax_energy.plot(t, kinetic, label='Kinetic Energy', color='red')
-ax_energy.plot(t, potential, label='Potential Energy', color='orange')
-ax_energy.plot(t, total_energy, label='Total Energy', color='purple')
-ax_energy.set_xlabel("Time (s)", fontsize=14)
-ax_energy.set_ylabel("Energy (J)", fontsize=14)
-ax_energy.set_title("Energy of the Oscillator", fontsize=16)
-ax_energy.grid(True)
-ax_energy.legend()
+fig_energy = go.Figure()
+fig_energy.add_trace(go.Scatter(x=t, y=kinetic, mode='lines', name='Kinetic Energy', line=dict(color='red')))
+fig_energy.add_trace(go.Scatter(x=t, y=potential, mode='lines', name='Potential Energy', line=dict(color='orange')))
+fig_energy.add_trace(go.Scatter(x=t, y=total_energy, mode='lines', name='Total Energy', line=dict(color='purple')))
+fig_energy.update_layout(title='Energy of the Oscillator', xaxis_title='Time (s)', yaxis_title='Energy (J)', template='plotly_dark')
+st.plotly_chart(fig_energy, use_container_width=True)
 
-st.pyplot(fig_energy)
+# Optional: Download Data
+st.header("Download Simulation Data")
+import pandas as pd
+
+df = pd.DataFrame({
+    'Time (s)': t,
+    'Displacement (m)': x,
+    'Velocity (m/s)': v,
+    'Acceleration (m/s²)': a,
+    'Kinetic Energy (J)': kinetic,
+    'Potential Energy (J)': potential,
+    'Total Energy (J)': total_energy
+})
+
+st.download_button(
+    label="Download Data as CSV",
+    data=df.to_csv(index=False).encode('utf-8'),
+    file_name='oscillator_data.csv',
+    mime='text/csv',
+)
