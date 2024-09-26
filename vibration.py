@@ -5,7 +5,7 @@ import io
 import base64
 
 # Set page config for dark theme
-st.set_page_config(page_title="SDOF Dynamic Response Simulator", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Resposta Dinâmica SDOF com Diferenças Centrais", layout="wide", initial_sidebar_state="expanded")
 
 # Custom CSS for dark theme
 st.markdown("""
@@ -37,15 +37,15 @@ def calculate_response(M, K, zeta, load_type, load_params, tf, dt, x0, v0):
     v = np.zeros(n)
     a = np.zeros(n)
     
-    if load_type == "Zero Force":
+    if load_type == "Zero":
         P = np.zeros(n)
-    elif load_type == "Harmonic":
+    elif load_type == "Harmonica":
         Po, w = load_params
         P = Po * np.sin(w * t)
     elif load_type == "Linear":
         P0, P1 = load_params
         P = np.linspace(P0, P1, n)
-    elif load_type == "Pulse":
+    elif load_type == "Pulso":
         Po, duration = load_params
         P = np.where(t <= duration, Po, 0)
     
@@ -109,9 +109,9 @@ dt = st.sidebar.number_input("Time Step (s)", value=0.1)
 st.sidebar.header("Load Parameters")
 load_type = st.sidebar.selectbox("Load Type", ["Zero Force", "Harmonic", "Linear", "Pulse"])
 
-if load_type == "Zero Force":
+if load_type == "Zero":
     load_params = None
-elif load_type == "Harmonic":
+elif load_type == "Harmonica":
     Po = st.sidebar.number_input("Load Amplitude (N)", value=1e5)
     w = st.sidebar.number_input("Load Frequency (rad/s)", value=0.1)
     load_params = (Po, w)
@@ -119,7 +119,7 @@ elif load_type == "Linear":
     P0 = st.sidebar.number_input("Initial Load (N)", value=0)
     P1 = st.sidebar.number_input("Final Load (N)", value=1e5)
     load_params = (P0, P1)
-elif load_type == "Pulse":
+elif load_type == "Pulso":
     Po = st.sidebar.number_input("Pulse Amplitude (N)", value=1e5)
     duration = st.sidebar.number_input("Pulse Duration (s)", value=10.0)
     load_params = (Po, duration)
