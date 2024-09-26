@@ -1,7 +1,6 @@
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_agg import RendererAgg
 import io
 import base64
 
@@ -131,15 +130,8 @@ t, x, v, a, P = calculate_response(M, K, zeta, load_type, load_params, tf, dt, x
 # Create plot
 fig, axs = create_plot(t, x, v, a, P)
 
-# Add interactivity to the plot
-_lock = RendererAgg.lock
-
-with _lock:
-    fig_html = io.StringIO()
-    fig.savefig(fig_html, format='svg')
-    plot_html = fig_html.getvalue()
-
-st.components.v1.html(plot_html, height=1000)
+# Display the plot using st.pyplot
+st.pyplot(fig)
 
 # Function to handle mouse click events
 def on_click(event):
