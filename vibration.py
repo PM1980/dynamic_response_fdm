@@ -107,7 +107,7 @@ tf = st.sidebar.number_input("Simulation Time (s)", value=200)
 dt = st.sidebar.number_input("Time Step (s)", value=0.1)
 
 st.sidebar.header("Load Parameters")
-load_type = st.sidebar.selectbox("Load Type", ["Zero Force", "Harmonic", "Linear", "Pulse"])
+load_type = st.sidebar.selectbox("Load Type", ["Zero", "Harmonica", "Linear", "Pulso"])
 
 if load_type == "Zero":
     load_params = None
