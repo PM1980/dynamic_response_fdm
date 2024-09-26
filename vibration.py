@@ -112,16 +112,16 @@ load_type = st.sidebar.selectbox("Load Type", ["Zero", "Harmonica", "Linear", "P
 if load_type == "Zero":
     load_params = None
 elif load_type == "Harmonica":
-    Po = st.sidebar.number_input("Load Amplitude (N)", value=1e5)
-    w = st.sidebar.number_input("Load Frequency (rad/s)", value=0.1)
+    Po = st.sidebar.number_input("Amplitude (N)", value=1e5)
+    w = st.sidebar.number_input("Frequência (rad/s)", value=0.1)
     load_params = (Po, w)
 elif load_type == "Linear":
-    P0 = st.sidebar.number_input("Initial Load (N)", value=0)
-    P1 = st.sidebar.number_input("Final Load (N)", value=1e5)
+    P0 = st.sidebar.number_input("Valor inicial (N)", value=0)
+    P1 = st.sidebar.number_input("Valor final (N)", value=1e5)
     load_params = (P0, P1)
 elif load_type == "Pulso":
-    Po = st.sidebar.number_input("Pulse Amplitude (N)", value=1e5)
-    duration = st.sidebar.number_input("Pulse Duration (s)", value=10.0)
+    Po = st.sidebar.number_input("Amplitude (N)", value=1e5)
+    duration = st.sidebar.number_input("Duração (s)", value=10.0)
     load_params = (Po, duration)
 
 # Calculate response
