@@ -96,17 +96,17 @@ st.title("Resposta Dinâmica SDOF com Diferenças Centrais")
 
 # Sidebar for inputs
 st.sidebar.header("System Parameters")
-M = st.sidebar.number_input("Mass (kg)", value=275e3, format="%e")
-K = st.sidebar.number_input("Stiffness (N/m)", value=2.287e5, format="%e")
-zeta = st.sidebar.number_input("Damping Ratio", value=0.05, format="%f")
-x0 = st.sidebar.number_input("Initial Displacement (m)", value=0.0, format="%f")
-v0 = st.sidebar.number_input("Initial Velocity (m/s)", value=0.0, format="%f")
+M = st.sidebar.number_input("Massa (kg)", value=275e3, format="%e")
+K = st.sidebar.number_input("Rigidez (N/m)", value=2.287e5, format="%e")
+zeta = st.sidebar.number_input("Razao amortecimento", value=0.05, format="%f")
+x0 = st.sidebar.number_input("Deslocamento inicial (m)", value=0.0, format="%f")
+v0 = st.sidebar.number_input("Velocidade inicial (m/s)", value=0.0, format="%f")
 
-st.sidebar.header("Simulation Parameters")
-tf = st.sidebar.number_input("Simulation Time (s)", value=200)
-dt = st.sidebar.number_input("Time Step (s)", value=0.1)
+st.sidebar.header("Parâmetros da simulação")
+tf = st.sidebar.number_input("Tempo da simulação (s)", value=200)
+dt = st.sidebar.number_input("Passo de tempo (s)", value=0.1)
 
-st.sidebar.header("Load Parameters")
+st.sidebar.header("Parâmetros da carga")
 load_type = st.sidebar.selectbox("Load Type", ["Zero", "Harmonica", "Linear", "Pulso"])
 
 if load_type == "Zero":
