@@ -95,7 +95,7 @@ def create_plot(t, x, v, a, P):
 st.title("Resposta Dinâmica SDOF com Diferenças Centrais")
 
 # Sidebar for inputs
-st.sidebar.header("System Parameters")
+st.sidebar.header("Parâmetros do sistema")
 M = st.sidebar.number_input("Massa (kg)", value=275e3, format="%e")
 K = st.sidebar.number_input("Rigidez (N/m)", value=2.287e5, format="%e")
 zeta = st.sidebar.number_input("Razao amortecimento", value=0.05, format="%f")
