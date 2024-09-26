@@ -107,7 +107,7 @@ tf = st.sidebar.number_input("Tempo da simulação (s)", value=200)
 dt = st.sidebar.number_input("Passo de tempo (s)", value=0.1)
 
 st.sidebar.header("Parâmetros da carga")
-load_type = st.sidebar.selectbox("Load Type", ["Zero", "Harmonica", "Linear", "Pulso"])
+load_type = st.sidebar.selectbox("Tipo de carregamento", ["Zero", "Harmonica", "Linear", "Pulso"])
 
 if load_type == "Zero":
     load_params = None
