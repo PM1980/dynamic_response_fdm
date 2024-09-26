@@ -92,7 +92,7 @@ def create_plot(t, x, v, a, P):
     plt.tight_layout()
     return fig, axs
 
-st.title("SDOF Dynamic Response Simulator")
+st.title("Resposta Dinâmica SDOF com Diferenças Centrais")
 
 # Sidebar for inputs
 st.sidebar.header("System Parameters")
