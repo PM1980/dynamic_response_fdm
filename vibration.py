@@ -2,148 +2,103 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 
-def calculate_response_cds(K, M, zeta, x0, v0, tf, dt, force_type, force_param, omega_force=0.0):
-    """
-    Calculate the dynamic response of a damped harmonic oscillator using the Central Difference Scheme.
-
-    Parameters:
-    - K: Stiffness (N/m)
-    - M: Mass (kg)
-    - zeta: Damping ratio
-    - x0: Initial displacement (m)
-    - v0: Initial velocity (m/s)
-    - tf: Final time (s)
-    - dt: Time step (s)
-    - force_type: "Harmonic" or "Linear"
-    - force_param: Amplitude for Harmonic, Slope for Linear
-    - omega_force: Frequency for Harmonic force (rad/s)
-
-    Returns:
-    - t: Time array
-    - x: Displacement array
-    - v: Velocity array
-    - a: Acceleration array
-    """
-    omega_n = np.sqrt(K / M)  # Natural frequency (rad/s)
-    C = 2 * zeta * np.sqrt(K * M)  # Damping coefficient (N·s/m)
-
+def calculate_response(M, K, zeta, load_type, load_params, tf, dt):
+    # Calculate derived parameters
+    C = 2 * zeta * np.sqrt(K * M)
+    omega = np.sqrt(K/M)
+    
+    # Time vector
     t = np.arange(0, tf + dt, dt)
     n = len(t)
+    
+    # Initialize arrays
     x = np.zeros(n)
     v = np.zeros(n)
     a = np.zeros(n)
     
-    # Initialize displacement and velocity
-    x[0] = x0
-    v[0] = v0
-    # Calculate initial acceleration
-    if force_type == "Harmonic":
-        F0 = force_param * np.sin(omega_force * t[0])
-    else:  # Linear
-        F0 = force_param * t[0]
-    a[0] = (F0 - C * v0 - K * x0) / M
-    # Use Taylor series to estimate x[1]
-    x[1] = x0 + dt * v0 + 0.5 * dt**2 * a[0]
+    # Load vector
+    if load_type == "Harmonic":
+        Po, w = load_params
+        P = Po * np.sin(w * t)
+    elif load_type == "Linear":
+        P0, P1 = load_params
+        P = np.linspace(P0, P1, n)
+    elif load_type == "Pulse":
+        Po, duration = load_params
+        P = np.where(t <= duration, Po, 0)
+    
+    # Initial conditions
+    x[0] = 0
+    v[0] = 0
+    a[0] = (P[0] - C*v[0] - K*x[0]) / M
+    
+    # First step
+    x[1] = 0.5 * (dt**2 * a[0] + 2*v[0]*dt)
+    
+    # Time-stepping loop
+    for i in range(2, n):
+        x[i] = (2*(dt**2)*(P[i-1]-K*x[i-1]) + C*dt*x[i-2] + 4*M*x[i-1] - 2*M*x[i-2]) / (C*dt + 2*M)
+    
+    # Calculate velocity and acceleration
+    v[1:-1] = (x[2:] - x[:-2]) / (2*dt)
+    a[1:-1] = (x[2:] - 2*x[1:-1] + x[:-2]) / (dt**2)
+    
+    return t, x, v, a, P
 
-    # Stability Check
-    critical_dt = 2 / omega_n
-    if dt >= critical_dt:
-        st.warning(f"The chosen time step dt = {dt} s may be too large for stability of the Central Difference Scheme. Consider dt < {critical_dt:.4f} s.")
+st.title("SDOF Dynamic Response Simulator")
 
-    # Compute response using Central Difference Scheme
-    for i in range(1, n-1):
-        if force_type == "Harmonic":
-            F = force_param * np.sin(omega_force * t[i])
-        else:  # Linear
-            F = force_param * t[i]
-        
-        # Central Difference Formula
-        x_next = (2 * x[i] - x[i-1] + dt**2 * (F - C * (x[i] - x[i-1]) / dt - K * x[i]) / M) / (1 + (C * dt) / (2 * M))
-        x[i+1] = x_next
-        
-        # Calculate velocity and acceleration
-        v[i] = (x[i+1] - x[i-1]) / (2 * dt)
-        a[i] = (F - C * v[i] - K * x[i]) / M
+# Sidebar for inputs
+st.sidebar.header("System Parameters")
+M = st.sidebar.number_input("Mass (kg)", value=275e3, format="%e")
+K = st.sidebar.number_input("Stiffness (N/m)", value=2.287e5, format="%e")
+zeta = st.sidebar.number_input("Damping Ratio", value=0.05, format="%f")
 
-    # Calculate final velocity and acceleration
-    v[-1] = (x[-1] - x[-2]) / dt
-    a[-1] = (F - C * v[-1] - K * x[-1]) / M
+st.sidebar.header("Simulation Parameters")
+tf = st.sidebar.number_input("Simulation Time (s)", value=200)
+dt = st.sidebar.number_input("Time Step (s)", value=0.1)
 
-    return t, x, v, a
+st.sidebar.header("Load Parameters")
+load_type = st.sidebar.selectbox("Load Type", ["Harmonic", "Linear", "Pulse"])
 
-# Streamlit User Interface
-st.title("Vibração forçada amortecida - Sistema de 1 grau de liberdade (Diferença Finita Central)")
-
-st.sidebar.header("Parâmetros dos sistema")
-K = st.sidebar.number_input("Rigidez (N/m)", value=1000.0, min_value=0.1)
-M = st.sidebar.number_input("Massa (kg)", value=1.0, min_value=0.1)
-zeta = st.sidebar.slider("Razão de amortecimento (ζ)", 0.0, 2.0, 0.05, step=0.01)
-x0 = st.sidebar.number_input("Deslocamento inicial (m)", value=1.0)
-v0 = st.sidebar.number_input("Velocidade inicial (m/s)", value=0.0)
-tf = st.sidebar.number_input("Tempo de simulação (s)", value=10.0, min_value=0.1, step=0.1)
-dt = st.sidebar.number_input("Passo de tempo (s)", value=0.01, min_value=0.001, step=0.001)
-
-st.sidebar.header("Excitação externa")
-force_type = st.sidebar.selectbox("Tipo de excitação", ["Harmônica - Fo*Sin(w*t)", "Linear - Fo*x "])
-if force_type == "Harmônica - Fo*Sin(w*t)":
-    force_amplitude = st.sidebar.number_input("Amplitude Fo (N)", value=0.0)
-    omega_force = st.sidebar.number_input("Frequência de excitação w (rad/s)", value=1.0, min_value=0.0)
-    force_param = force_amplitude
-else:
-    force_slope = st.sidebar.number_input("Amplitude Fo(N)", value=0.0)
-    force_param = force_slope
-    omega_force = 0.0  # Not used for Linear force
+if load_type == "Harmonic":
+    Po = st.sidebar.number_input("Load Amplitude (N)", value=1e5)
+    w = st.sidebar.number_input("Load Frequency (rad/s)", value=0.1)
+    load_params = (Po, w)
+elif load_type == "Linear":
+    P0 = st.sidebar.number_input("Initial Load (N)", value=0)
+    P1 = st.sidebar.number_input("Final Load (N)", value=1e5)
+    load_params = (P0, P1)
+elif load_type == "Pulse":
+    Po = st.sidebar.number_input("Pulse Amplitude (N)", value=1e5)
+    duration = st.sidebar.number_input("Pulse Duration (s)", value=10.0)
+    load_params = (Po, duration)
 
 # Calculate response
-t, x, v, a = calculate_response_cds(K, M, zeta, x0, v0, tf, dt, force_type, force_param, omega_force)
+t, x, v, a, P = calculate_response(M, K, zeta, load_type, load_params, tf, dt)
 
-# Plotting Displacement, Velocity, and Acceleration vs Time
-fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(10, 15), sharex=True)
+# Plotting
+fig, axs = plt.subplots(4, 1, figsize=(10, 20))
+axs[0].plot(t, P)
+axs[0].set_ylabel("Load (N)")
+axs[0].set_title("Applied Load")
+axs[0].grid(True)
 
-ax1.plot(t, x, label='Displacement x(t)', color='blue')
-ax1.set_ylabel("Displacement (m)", fontsize=12)
-ax1.set_title("Oscillator Response using Central Difference Scheme", fontsize=14)
-ax1.grid(True)
-ax1.legend()
+axs[1].plot(t, x)
+axs[1].set_ylabel("Displacement (m)")
+axs[1].set_title("Displacement Response")
+axs[1].grid(True)
 
-ax2.plot(t, v, label='Velocity v(t)', color='green')
-ax2.set_ylabel("Velocity (m/s)", fontsize=12)
-ax2.grid(True)
-ax2.legend()
+axs[2].plot(t, v)
+axs[2].set_ylabel("Velocity (m/s)")
+axs[2].set_title("Velocity Response")
+axs[2].grid(True)
 
-ax3.plot(t, a, label='Acceleration a(t)', color='red')
-ax3.set_xlabel("Time (s)", fontsize=12)
-ax3.set_ylabel("Acceleration (m/s²)", fontsize=12)
-ax3.grid(True)
-ax3.legend()
+axs[3].plot(t, a)
+axs[3].set_ylabel("Acceleration (m/s²)")
+axs[3].set_title("Acceleration Response")
+axs[3].grid(True)
+
+axs[3].set_xlabel("Time (s)")
 
 plt.tight_layout()
 st.pyplot(fig)
-
-# Phase Space Plot
-fig_phase, ax_phase = plt.subplots(figsize=(10, 6))
-ax_phase.plot(x, v, label='Phase Space Trajectory', color='purple')
-ax_phase.set_xlabel("Displacement (m)", fontsize=12)
-ax_phase.set_ylabel("Velocity (m/s)", fontsize=12)
-ax_phase.set_title("Phase Space Plot", fontsize=14)
-ax_phase.grid(True)
-ax_phase.legend()
-
-st.pyplot(fig_phase)
-
-# Energy Plot
-kinetic = 0.5 * M * v**2
-potential = 0.5 * K * x**2
-total_energy = kinetic + potential
-
-fig_energy, ax_energy = plt.subplots(figsize=(10, 6))
-ax_energy.plot(t, kinetic, label='Kinetic Energy', color='red')
-ax_energy.plot(t, potential, label='Potential Energy', color='orange')
-ax_energy.plot(t, total_energy, label='Total Energy', color='purple')
-ax_energy.set_xlabel("Time (s)", fontsize=12)
-ax_energy.set_ylabel("Energy (J)", fontsize=12)
-ax_energy.set_title("Energy of the Oscillator", fontsize=14)
-ax_energy.grid(True)
-ax_energy.legend()
-
-st.pyplot(fig_energy)
